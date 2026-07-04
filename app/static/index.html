@@ -1,0 +1,1069 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OTT Core Server Dashboard</title>
+    <!-- TUS Resumable Upload client library -->
+    <script src="https://cdn.jsdelivr.net/npm/tus-js-client@2.3.0/dist/tus.min.js"></script>
+    <!-- HLS Playback support library -->
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <!-- OTT Core API client wrapper -->
+    <script src="api.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f9f9f9;
+            color: #333;
+        }
+
+        h1,
+        h2,
+        h3 {
+            color: #444;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .flex-container {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .card {
+            background: #fff;
+            padding: 20px;
+            border-radius: 6px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+            flex: 1;
+            min-width: 300px;
+        }
+
+        .form-group {
+            margin-bottom: 12px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 8px;
+            box-sizing: border-box;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        button.btn-danger {
+            background-color: #dc3545;
+        }
+
+        button.btn-danger:hover {
+            background-color: #bd2130;
+        }
+
+        .progress-container {
+            display: none;
+            margin-top: 15px;
+            background-color: #e9ecef;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            width: 0%;
+            height: 20px;
+            background-color: #28a745;
+            color: white;
+            text-align: center;
+            line-height: 20px;
+            font-size: 12px;
+            transition: width 0.2s;
+        }
+
+        .alert {
+            padding: 12px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+            display: none;
+        }
+
+        .alert-error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+            display: block;
+        }
+
+        .alert-success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+            display: block;
+        }
+
+        .video-item,
+        .playlist-item {
+            border-bottom: 1px solid #eee;
+            padding: 15px 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .video-item img,
+        .playlist-item img {
+            width: 120px;
+            height: 70px;
+            object-fit: cover;
+            border-radius: 4px;
+            margin-right: 15px;
+            background-color: #eee;
+        }
+
+        .video-meta,
+        .playlist-meta {
+            flex-grow: 1;
+        }
+
+        .video-actions,
+        .playlist-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        video {
+            width: 100%;
+            max-width: 640px;
+            background: #000;
+            margin-top: 10px;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 3px 7px;
+            font-size: 11px;
+            font-weight: bold;
+            color: white;
+            border-radius: 10px;
+        }
+
+        .badge-pending {
+            background-color: #ffc107;
+            color: #212529;
+        }
+
+        .badge-processing {
+            background-color: #17a2b8;
+        }
+
+        .badge-ready {
+            background-color: #28a745;
+        }
+
+        .badge-failed {
+            background-color: #dc3545;
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.5);
+            backdrop-filter: blur(4px);
+        }
+
+        .modal-content {
+            background-color: #fff;
+            margin: 10% auto;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+            max-width: 600px;
+            position: relative;
+        }
+
+        .close-modal {
+            position: absolute;
+            right: 20px;
+            top: 15px;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            color: #aaa;
+        }
+
+        .close-modal:hover {
+            color: #333;
+        }
+
+        .thumbnail-selector {
+            display: flex;
+            gap: 15px;
+            margin-top: 10px;
+        }
+
+        .thumbnail-option {
+            flex: 1;
+            border: 3px solid #eee;
+            border-radius: 6px;
+            overflow: hidden;
+            cursor: pointer;
+            position: relative;
+            transition: all 0.2s;
+            max-width: 150px;
+        }
+
+        .thumbnail-option img {
+            width: 100%;
+            height: 80px;
+            object-fit: cover;
+            display: block;
+        }
+
+        .thumbnail-option.active {
+            border-color: #28a745;
+            box-shadow: 0 0 10px rgba(40, 167, 69, 0.3);
+        }
+
+        .thumbnail-option.active::after {
+            content: "Default";
+            position: absolute;
+            bottom: 5px;
+            right: 5px;
+            background-color: #28a745;
+            color: white;
+            padding: 2px 6px;
+            font-size: 10px;
+            font-weight: bold;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>OTT Core Server Dashboard</h1>
+        <hr>
+
+        <!-- API Connection Configurator -->
+        <div class="card" style="margin-bottom: 20px; padding: 15px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; border-left: 5px solid #007bff;">
+            <div>
+                <strong>API Server Base URL:</strong> 
+                <span id="apiServerUrlDisplay" style="color: #007bff; font-family: monospace; font-weight: bold; margin-left: 5px;"></span>
+                <span id="apiStatusBadge" class="badge" style="margin-left: 10px; background-color: #6c757d; font-size: 12px; padding: 4px 8px;">Checking Status...</span>
+            </div>
+            <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                <input type="text" id="apiServerUrlInput" placeholder="http://<remote-ip>:8000" style="padding: 8px 12px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; width: 260px;">
+                <button onclick="saveApiUrl()" style="padding: 8px 14px; font-size: 13px; background-color: #28a745;">Connect</button>
+                <button onclick="resetApiUrl()" style="padding: 8px 14px; font-size: 13px; background-color: #6c757d;">Reset Default</button>
+            </div>
+        </div>
+
+        <!-- Global Alert Log Box -->
+        <div id="alertBox" class="alert"></div>
+
+        <div class="flex-container">
+            <!-- VIDEO UPLOAD SECTION -->
+            <div class="card">
+                <h2>Upload Video (TUS Resumable)</h2>
+                <form id="videoForm">
+                    <div class="form-group">
+                        <label for="userId">User ID</label>
+                        <input type="number" id="userId" value="1" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="videoTitle">Title</label>
+                        <input type="text" id="videoTitle" placeholder="My Awesome Video" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="videoDesc">Description</label>
+                        <textarea id="videoDesc" rows="3" placeholder="Enter video description..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="videoCategory">Category</label>
+                        <input type="text" id="videoCategory" placeholder="e.g. Entertainment, Action">
+                    </div>
+                    <div class="form-group">
+                        <label for="videoTags">Tags (comma-separated)</label>
+                        <input type="text" id="videoTags" placeholder="fun, cool, new">
+                    </div>
+                    <div class="form-group">
+                        <label for="videoThumb">Thumbnails (Select exactly 3 images, 1st will be default)</label>
+                        <input type="file" id="videoThumb" accept="image/*" multiple required>
+                    </div>
+                    <div class="form-group">
+                        <label for="videoFile">Video File (Uploaded via TUS to Bunny Stream)</label>
+                        <input type="file" id="videoFile" accept="video/*" required>
+                    </div>
+                    <button type="submit" id="uploadBtn">Upload Video</button>
+                </form>
+
+                <div class="progress-container" id="progressContainer">
+                    <div class="progress-bar" id="progressBar">0%</div>
+                </div>
+                <div id="uploadStatus" style="margin-top: 10px; font-weight: bold; color: #555;"></div>
+            </div>
+
+            <!-- PLAYLIST MANAGEMENT SECTION -->
+            <div class="card">
+                <h2>Create Playlist</h2>
+                <form id="playlistForm">
+                    <div class="form-group">
+                        <label for="playlistUserId">User ID</label>
+                        <input type="number" id="playlistUserId" value="1" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="playlistName">Playlist Name</label>
+                        <input type="text" id="playlistName" placeholder="My Favourites" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="playlistDesc">Playlist Description</label>
+                        <textarea id="playlistDesc" rows="3" placeholder="Playlist description..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="playlistThumb">Playlist Cover Image (Stored in Bunny Storage)</label>
+                        <input type="file" id="playlistThumb" accept="image/*" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Select Videos to Add</label>
+                        <div id="playlistVideoSelection"
+                            style="max-height: 150px; overflow-y: auto; border: 1px solid #ccc; padding: 8px; border-radius: 4px;">
+                            <!-- Checkboxes will populate here -->
+                            <p style="color: #666; font-size: 13px; margin: 0;">No videos loaded yet.</p>
+                        </div>
+                    </div>
+                    <button type="submit">Create Playlist</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- PLAYBACK VIEWER CARD -->
+        <div class="card" id="playbackCard" style="display: none;">
+            <h2>Now Playing: <span id="playingTitle"></span></h2>
+            <div style="position: relative;">
+                <video id="hlsPlayer" controls></video>
+            </div>
+            <button onclick="closePlayer()" style="margin-top: 10px;">Close Player</button>
+        </div>
+
+        <div class="flex-container">
+            <!-- VIDEOS LIST CARD -->
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <h2>All Videos</h2>
+                    <button onclick="loadVideos()">Refresh Videos</button>
+                </div>
+                <div id="videosList">
+                    <p>Loading videos...</p>
+                </div>
+            </div>
+
+            <!-- PLAYLISTS LIST CARD -->
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <h2>All Playlists</h2>
+                    <button onclick="loadPlaylists()">Refresh Playlists</button>
+                </div>
+                <div id="playlistsList">
+                    <p>Loading playlists...</p>
+                </div>
+            </div>
+        </div>
+    <!-- EDIT VIDEO MODAL -->
+    <div id="editVideoModal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeEditModal()">&times;</span>
+            <h2>Edit Video Details</h2>
+            <form id="editVideoForm">
+                <input type="hidden" id="editVideoId">
+                <input type="hidden" id="editVideoUserId">
+                <div class="form-group">
+                    <label for="editVideoTitle">Title</label>
+                    <input type="text" id="editVideoTitle" required>
+                </div>
+                <div class="form-group">
+                    <label for="editVideoDesc">Description</label>
+                    <textarea id="editVideoDesc" rows="3"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="editVideoCategory">Category</label>
+                    <input type="text" id="editVideoCategory">
+                </div>
+                <div class="form-group">
+                    <label for="editVideoTags">Tags (comma-separated)</label>
+                    <input type="text" id="editVideoTags">
+                </div>
+                <div class="form-group">
+                    <label>Select Video Thumbnail (Click to choose new default)</label>
+                    <div class="thumbnail-selector" id="editThumbnailSelector">
+                        <!-- Thumbnail options will be generated here -->
+                    </div>
+                </div>
+                <div style="margin-top: 20px; display: flex; gap: 10px; justify-content: flex-end;">
+                    <button type="button" onclick="closeEditModal()" class="btn-secondary" style="background:#6c757d;">Cancel</button>
+                    <button type="submit" style="background-color: #28a745;">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    </div>
+    <script>
+        // Configuration
+        const DEFAULT_URL = (window.location.origin === 'null' || window.location.protocol === 'file:') 
+            ? 'http://localhost:8000' 
+            : window.location.origin;
+
+        let BASE_URL = localStorage.getItem('apiBaseUrl') || DEFAULT_URL;
+
+        // Globals
+        let allVideosList = [];
+        let videoStatusPollingInterval = null;
+
+        // Helper alerts
+        function showAlert(message, type = 'success') {
+            const alertBox = document.getElementById('alertBox');
+            alertBox.textContent = message;
+            alertBox.className = `alert alert-${type}`;
+            alertBox.style.display = 'block';
+            setTimeout(() => {
+                alertBox.style.display = 'none';
+            }, 8000);
+        }
+
+        // API Connection status and configuration management
+        function updateApiConfigUI() {
+            document.getElementById('apiServerUrlDisplay').innerText = BASE_URL;
+            document.getElementById('apiServerUrlInput').value = BASE_URL;
+            checkApiConnection();
+        }
+
+        async function checkApiConnection() {
+            const badge = document.getElementById('apiStatusBadge');
+            badge.innerText = "Connecting...";
+            badge.className = "badge";
+            badge.style.backgroundColor = "#ffc107";
+            badge.style.color = "#212529";
+            
+            try {
+                // Perform a quick status check
+                const res = await fetch(`${BASE_URL}/api/v1/videos`, { method: 'GET' });
+                if (res.ok) {
+                    badge.innerText = "Connected";
+                    badge.className = "badge badge-ready";
+                    badge.style.backgroundColor = "#28a745";
+                    badge.style.color = "white";
+                } else {
+                    throw new Error("HTTP Status " + res.status);
+                }
+            } catch (err) {
+                console.error("API connection check failed: ", err);
+                badge.innerText = "Connection Failed / CORS Error";
+                badge.className = "badge badge-failed";
+                badge.style.backgroundColor = "#dc3545";
+                badge.style.color = "white";
+            }
+        }
+
+        function saveApiUrl() {
+            let inputUrl = document.getElementById('apiServerUrlInput').value.trim();
+            if (!inputUrl) {
+                showAlert("Please enter a valid API Server URL", "error");
+                return;
+            }
+            if (inputUrl.endsWith('/')) {
+                inputUrl = inputUrl.slice(0, -1);
+            }
+            localStorage.setItem('apiBaseUrl', inputUrl);
+            BASE_URL = inputUrl;
+            updateApiConfigUI();
+            showAlert("API Server URL updated to " + inputUrl, "success");
+            loadVideos();
+            loadPlaylists();
+        }
+
+        function resetApiUrl() {
+            localStorage.removeItem('apiBaseUrl');
+            BASE_URL = DEFAULT_URL;
+            updateApiConfigUI();
+            showAlert("API Server URL reset to default: " + DEFAULT_URL, "success");
+            loadVideos();
+            loadPlaylists();
+        }
+
+        // Initialize Page
+        document.addEventListener("DOMContentLoaded", () => {
+            updateApiConfigUI();
+            loadVideos();
+            loadPlaylists();
+
+            // Handle Video form submission
+            document.getElementById('videoForm').addEventListener('submit', handleVideoUpload);
+            // Handle Playlist form submission
+            document.getElementById('playlistForm').addEventListener('submit', handlePlaylistCreate);
+            // Handle Edit Video form submission
+            document.getElementById('editVideoForm').addEventListener('submit', handleEditVideoSubmit);
+        });
+
+        // 1. VIDEO UPLOAD HANDLER WITH TUS
+        async function handleVideoUpload(event) {
+            event.preventDefault();
+
+            const userId = document.getElementById('userId').value;
+            const title = document.getElementById('videoTitle').value;
+            const desc = document.getElementById('videoDesc').value;
+            const category = document.getElementById('videoCategory').value;
+            const tags = document.getElementById('videoTags').value;
+
+            const thumbInput = document.getElementById('videoThumb');
+            const videoInput = document.getElementById('videoFile');
+
+            if (thumbInput.files.length !== 3 || videoInput.files.length === 0) {
+                showAlert("Please select exactly 3 thumbnail images and 1 video file.", "error");
+                return;
+            }
+
+            const videoFile = videoInput.files[0];
+
+            // Disable UI
+            document.getElementById('uploadBtn').disabled = true;
+            const statusDiv = document.getElementById('uploadStatus');
+            statusDiv.innerText = "Registering video & preparing upload targets...";
+
+            // Setup Progress
+            const progressContainer = document.getElementById('progressContainer');
+            const progressBar = document.getElementById('progressBar');
+            progressContainer.style.display = 'block';
+            progressBar.style.width = '0%';
+            progressBar.innerText = '0%';
+
+            try {
+                // STEP 1: Register video and obtain credentials
+                const initiatePayload = {
+                    user_id: parseInt(userId),
+                    title: title,
+                    description: desc,
+                    category: category,
+                    tags: tags,
+                    thumbnail_names: [
+                        thumbInput.files[0].name,
+                        thumbInput.files[1].name,
+                        thumbInput.files[2].name
+                    ]
+                };
+
+                const initiateRes = await fetch(`${BASE_URL}/api/v1/videos/initiate`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(initiatePayload)
+                });
+
+                if (!initiateRes.ok) {
+                    const errData = await initiateRes.json();
+                    throw new Error(errData.detail || "Failed to initiate video upload");
+                }
+
+                const uploadConfig = await initiateRes.json();
+                statusDiv.innerText = "Uploading 3 thumbnails directly to Bunny Storage...";
+
+                // STEP 2: Upload all 3 Thumbnails directly to Bunny Storage in parallel
+                const uploadPromises = uploadConfig.thumbnail_uploads.map((upload, idx) => {
+                    return fetch(upload.upload_url, {
+                        method: 'PUT',
+                        headers: uploadConfig.thumbnail_upload_headers || {},
+                        body: thumbInput.files[idx]
+                    });
+                });
+
+                const uploadResponses = await Promise.all(uploadPromises);
+                for (const response of uploadResponses) {
+                    if (!response.ok) {
+                        throw new Error("Direct thumbnail upload to Bunny Storage failed");
+                    }
+                }
+
+                statusDiv.innerText = "Initiating TUS upload directly to Bunny Stream...";
+
+                // STEP 3: Initiate TUS Resumable Upload for Video
+                const upload = new tus.Upload(videoFile, {
+                    endpoint: uploadConfig.tus_url,
+                    retryDelays: [0, 3000, 5000, 10000],
+                    headers: uploadConfig.tus_headers,
+                    metadata: {
+                        filetype: videoFile.type,
+                        title: title
+                    },
+                    onError: function (error) {
+                        console.error("TUS Error: ", error);
+                        statusDiv.innerText = "TUS Upload failed: " + error.message;
+                        document.getElementById('uploadBtn').disabled = false;
+                        showAlert("TUS upload error: " + error.message, "error");
+                    },
+                    onProgress: function (bytesUploaded, bytesTotal) {
+                        const percentage = (bytesUploaded / bytesTotal * 100).toFixed(0);
+                        progressBar.style.width = percentage + '%';
+                        progressBar.innerText = percentage + '%';
+                        statusDiv.innerText = `Uploading video... (${(bytesUploaded / (1024 * 1024)).toFixed(2)} MB of ${(bytesTotal / (1024 * 1024)).toFixed(2)} MB)`;
+                    },
+                    onSuccess: function () {
+                        statusDiv.innerText = "Video successfully uploaded! Bunny is encoding it.";
+                        document.getElementById('uploadBtn').disabled = false;
+                        showAlert("Video uploaded and registered successfully!", "success");
+                        document.getElementById('videoForm').reset();
+                        progressContainer.style.display = 'none';
+                        loadVideos();
+                    }
+                });
+
+                upload.start();
+
+            } catch (error) {
+                console.error(error);
+                statusDiv.innerText = "Upload failed: " + error.message;
+                document.getElementById('uploadBtn').disabled = false;
+                showAlert("Upload failed: " + error.message, "error");
+            }
+        }
+
+        // 2. PLAYLIST CREATION FLOW
+        async function handlePlaylistCreate(event) {
+            event.preventDefault();
+
+            const userId = document.getElementById('playlistUserId').value;
+            const name = document.getElementById('playlistName').value;
+            const desc = document.getElementById('playlistDesc').value;
+            const thumbInput = document.getElementById('playlistThumb');
+
+            if (thumbInput.files.length === 0) {
+                showAlert("Please select a playlist cover image.", "error");
+                return;
+            }
+
+            const coverFile = thumbInput.files[0];
+
+            // Gather checked video IDs
+            const checkedVideos = Array.from(document.querySelectorAll('#playlistVideoSelection input[type="checkbox"]:checked'))
+                .map(el => parseInt(el.value));
+
+            try {
+                // STEP A: Register Playlist
+                const playlistPayload = {
+                    name: name,
+                    description: desc,
+                    user_id: parseInt(userId),
+                    thumbnail_name: coverFile.name,
+                    video_ids: checkedVideos
+                };
+
+                const regRes = await fetch(`${BASE_URL}/api/v1/playlists`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(playlistPayload)
+                });
+
+                if (!regRes.ok) {
+                    const errData = await regRes.json();
+                    throw new Error(errData.detail || "Failed to register playlist");
+                }
+
+                const playlistInfo = await regRes.json();
+
+                // STEP B: Upload Thumbnail Cover directly to Bunny Storage
+                const uploadRes = await fetch(playlistInfo.image_upload_url, {
+                    method: 'PUT',
+                    headers: playlistInfo.image_upload_headers || {},
+                    body: coverFile
+                });
+
+                if (!uploadRes.ok) {
+                    throw new Error("Failed to upload playlist cover image directly to Bunny Storage");
+                }
+
+                showAlert("Playlist successfully created with cover image!", "success");
+                document.getElementById('playlistForm').reset();
+                loadPlaylists();
+
+            } catch (error) {
+                console.error(error);
+                showAlert("Playlist creation failed: " + error.message, "error");
+            }
+        }
+
+        // 3. FETCH AND DISPLAY VIDEOS
+        async function loadVideos() {
+            try {
+                const res = await fetch(`${BASE_URL}/api/v1/videos`);
+                if (!res.ok) throw new Error("Failed to load videos metadata");
+
+                allVideosList = await res.json();
+                const videosListContainer = document.getElementById('videosList');
+                const playlistSelector = document.getElementById('playlistVideoSelection');
+
+                if (allVideosList.length === 0) {
+                    videosListContainer.innerHTML = '<p style="color: #666;">No videos found.</p>';
+                    playlistSelector.innerHTML = '<p style="color: #666; font-size: 13px; margin: 0;">No videos available.</p>';
+                    if (videoStatusPollingInterval) {
+                        clearInterval(videoStatusPollingInterval);
+                        videoStatusPollingInterval = null;
+                    }
+                    return;
+                }
+
+                // Populate Video list
+                videosListContainer.innerHTML = '';
+                // Populate checkboxes in playlist section
+                playlistSelector.innerHTML = '';
+
+                allVideosList.forEach(video => {
+                    // Determine badge
+                    let badgeClass = 'badge-pending';
+                    if (video.status === 'ready') badgeClass = 'badge-ready';
+                    else if (video.status === 'processing') badgeClass = 'badge-processing';
+                    else if (video.status === 'failed') badgeClass = 'badge-failed';
+
+                    // Video Card HTML
+                    const item = document.createElement('div');
+                    item.className = 'video-item';
+                    item.innerHTML = `
+                    <img src="${video.thumbnail_url || 'https://via.placeholder.com/120x70?text=No+Thumb'}" onerror="this.src='https://via.placeholder.com/120x70?text=Error'">
+                    <div class="video-meta">
+                        <strong>${escapeHTML(video.title)}</strong> 
+                        <span class="badge ${badgeClass}">${video.status.toUpperCase()}</span>
+                        <div style="font-size: 12px; color: #666; margin-top: 4px;">
+                            Category: ${escapeHTML(video.category || 'N/A')} | Tags: ${escapeHTML(video.tags.join(', ') || 'None')}
+                        </div>
+                        <div style="font-size: 13px; color: #444; margin-top: 4px;">
+                            ${escapeHTML(video.description || '')}
+                        </div>
+                    </div>
+                    <div class="video-actions">
+                        <button onclick="playVideo(${video.id})" ${video.status !== 'ready' ? 'disabled' : ''} style="${video.status !== 'ready' ? 'background:#ccc;cursor:default;' : ''}">Play</button>
+                        <button onclick="editVideo(${video.id}, ${video.user_id})" class="btn-secondary" style="background:#6c757d;">Edit</button>
+                        <button onclick="deleteVideo(${video.id}, ${video.user_id})" class="btn-danger">Delete</button>
+                    </div>
+                `;
+                    videosListContainer.appendChild(item);
+
+                    // Add to checkbox selector
+                    const checkLabel = document.createElement('label');
+                    checkLabel.style.display = 'block';
+                    checkLabel.style.margin = '4px 0';
+                    checkLabel.innerHTML = `
+                    <input type="checkbox" value="${video.id}">
+                    ${escapeHTML(video.title)}
+                `;
+                    playlistSelector.appendChild(checkLabel);
+                });
+
+                // Start/Stop polling based on whether there are pending/processing videos
+                const processingVideos = allVideosList.filter(v => v.status === 'pending' || v.status === 'processing');
+                if (processingVideos.length > 0) {
+                    if (!videoStatusPollingInterval) {
+                        videoStatusPollingInterval = setInterval(loadVideos, 5000); // Poll every 5 seconds
+                    }
+                } else {
+                    if (videoStatusPollingInterval) {
+                        clearInterval(videoStatusPollingInterval);
+                        videoStatusPollingInterval = null;
+                    }
+                }
+
+            } catch (error) {
+                console.error(error);
+                showAlert("Failed to retrieve videos: " + error.message, "error");
+            }
+        }
+
+        // 4. PLAYLISTS RETRIEVAL
+        async function loadPlaylists() {
+            try {
+                const res = await fetch(`${BASE_URL}/api/v1/playlists`);
+                if (!res.ok) throw new Error("Failed to load playlists list");
+
+                const playlists = await res.json();
+                const playlistsContainer = document.getElementById('playlistsList');
+
+                if (playlists.length === 0) {
+                    playlistsContainer.innerHTML = '<p style="color: #666;">No playlists found.</p>';
+                    return;
+                }
+
+                playlistsContainer.innerHTML = '';
+                playlists.forEach(playlist => {
+                    const videoTitles = playlist.videos.map(v => v.title).join(', ') || 'No videos';
+
+                    const item = document.createElement('div');
+                    item.className = 'playlist-item';
+                    item.innerHTML = `
+                    <img src="${playlist.thumbnail_url || 'https://via.placeholder.com/120x70?text=No+Cover'}" onerror="this.src='https://via.placeholder.com/120x70?text=Error'">
+                    <div class="playlist-meta">
+                        <strong>${escapeHTML(playlist.name)}</strong>
+                        <div style="font-size: 12px; color: #666; margin-top: 4px;">
+                            ${escapeHTML(playlist.description || '')}
+                        </div>
+                        <div style="font-size: 11px; color: #007bff; margin-top: 4px; font-weight: bold;">
+                            Videos: ${escapeHTML(videoTitles)}
+                        </div>
+                    </div>
+                    <div class="playlist-actions">
+                        <button onclick="deletePlaylist(${playlist.id}, ${playlist.user_id})" class="btn-danger">Delete</button>
+                    </div>
+                `;
+                    playlistsContainer.appendChild(item);
+                });
+
+            } catch (error) {
+                console.error(error);
+                showAlert("Failed to retrieve playlists: " + error.message, "error");
+            }
+        }
+
+        // 5. PLAY VIDEO HLS FLOW
+        let hlsInstance = null;
+        async function playVideo(videoId) {
+            try {
+                const res = await fetch(`${BASE_URL}/api/v1/videos/${videoId}/play`);
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.detail || "Playback URL unavailable");
+                }
+
+                const playInfo = await res.json();
+                const playerCard = document.getElementById('playbackCard');
+                const playingTitle = document.getElementById('playingTitle');
+                const videoElement = document.getElementById('hlsPlayer');
+
+                playingTitle.innerText = playInfo.title;
+                playerCard.style.display = 'block';
+
+                // Clean previous instance
+                if (hlsInstance) {
+                    hlsInstance.destroy();
+                    hlsInstance = null;
+                }
+
+                // Set up HLS.js or native playback
+                if (Hls.isSupported()) {
+                    hlsInstance = new Hls();
+                    hlsInstance.loadSource(playInfo.stream_url);
+                    hlsInstance.attachMedia(videoElement);
+                    hlsInstance.on(Hls.Events.MANIFEST_PARSED, function () {
+                        videoElement.play();
+                    });
+                    hlsInstance.on(Hls.Events.ERROR, function (event, data) {
+                        console.error("HLS error: ", data);
+                    });
+                } else if (videoElement.canPlayType('application/vnd.apple.mpegurl')) {
+                    // Safari or iOS devices native HLS
+                    videoElement.src = playInfo.stream_url;
+                    videoElement.addEventListener('loadedmetadata', function () {
+                        videoElement.play();
+                    });
+                } else {
+                    showAlert("Your browser does not support HLS streaming video formats.", "error");
+                }
+
+            } catch (error) {
+                console.error(error);
+                showAlert("Failed to play video: " + error.message, "error");
+            }
+        }
+
+        function closePlayer() {
+            const videoElement = document.getElementById('hlsPlayer');
+            videoElement.pause();
+            if (hlsInstance) {
+                hlsInstance.destroy();
+                hlsInstance = null;
+            }
+            document.getElementById('playbackCard').style.display = 'none';
+        }
+
+        // 6. EDIT VIDEO DETAILS
+        let selectedThumbnailUrlForEdit = null;
+
+        function closeEditModal() {
+            document.getElementById('editVideoModal').style.display = 'none';
+        }
+
+        async function editVideo(videoId, userId) {
+            const video = allVideosList.find(v => v.id === videoId);
+            if (!video) return;
+
+            // Populate form fields
+            document.getElementById('editVideoId').value = videoId;
+            document.getElementById('editVideoUserId').value = userId;
+            document.getElementById('editVideoTitle').value = video.title;
+            document.getElementById('editVideoDesc').value = video.description || '';
+            document.getElementById('editVideoCategory').value = video.category || '';
+            document.getElementById('editVideoTags').value = video.tags.join(', ') || '';
+
+            // Selected thumbnail tracker
+            selectedThumbnailUrlForEdit = video.thumbnail_url;
+
+            // Render thumbnails selector
+            const thumbSelector = document.getElementById('editThumbnailSelector');
+            thumbSelector.innerHTML = '';
+
+            const allThumbs = video.alt_thumbnails || [];
+            // Fallback in case alt_thumbnails is empty but thumbnail_url exists
+            if (allThumbs.length === 0 && video.thumbnail_url) {
+                allThumbs.push(video.thumbnail_url);
+            }
+
+            allThumbs.forEach((thumbUrl) => {
+                const opt = document.createElement('div');
+                opt.className = `thumbnail-option ${thumbUrl === selectedThumbnailUrlForEdit ? 'active' : ''}`;
+                opt.dataset.url = thumbUrl;
+                opt.innerHTML = `<img src="${thumbUrl}" onerror="this.src='https://via.placeholder.com/120x70?text=Error'">`;
+                
+                opt.addEventListener('click', () => {
+                    // Remove active class from all options
+                    document.querySelectorAll('.thumbnail-option').forEach(el => el.classList.remove('active'));
+                    // Add to clicked
+                    opt.classList.add('active');
+                    selectedThumbnailUrlForEdit = thumbUrl;
+                });
+                
+                thumbSelector.appendChild(opt);
+            });
+
+            // Open Modal
+            document.getElementById('editVideoModal').style.display = 'block';
+        }
+
+        async function handleEditVideoSubmit(event) {
+            event.preventDefault();
+
+            const videoId = document.getElementById('editVideoId').value;
+            const userId = document.getElementById('editVideoUserId').value;
+            const title = document.getElementById('editVideoTitle').value;
+            const desc = document.getElementById('editVideoDesc').value;
+            const category = document.getElementById('editVideoCategory').value;
+            const tagsStr = document.getElementById('editVideoTags').value;
+
+            const tagsArray = tagsStr ? tagsStr.split(",").map(t => t.trim()).filter(Boolean) : [];
+
+            try {
+                const res = await fetch(`${BASE_URL}/api/v1/videos/${videoId}?user_id=${userId}`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        title: title,
+                        description: desc,
+                        category: category,
+                        tags: tagsArray,
+                        thumbnail_url: selectedThumbnailUrlForEdit
+                    })
+                });
+
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.detail || "Failed to update video metadata");
+                }
+
+                showAlert("Video details updated successfully!", "success");
+                closeEditModal();
+                loadVideos();
+            } catch (error) {
+                console.error(error);
+                showAlert("Failed to update video: " + error.message, "error");
+            }
+        }
+
+        // 7. DELETE VIDEO FLOW
+        async function deleteVideo(videoId, userId) {
+            if (!confirm("Are you sure you want to delete this video? This removes it from the database and Bunny CDN.")) return;
+
+            try {
+                const res = await fetch(`${BASE_URL}/api/v1/videos/${videoId}?user_id=${userId}`, {
+                    method: 'DELETE'
+                });
+
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.detail || "Deletion request failed");
+                }
+
+                showAlert("Video deleted successfully from library and CDN.", "success");
+                loadVideos();
+            } catch (error) {
+                console.error(error);
+                showAlert("Failed to delete video: " + error.message, "error");
+            }
+        }
+
+        // 8. DELETE PLAYLIST FLOW
+        async function deletePlaylist(playlistId, userId) {
+            if (!confirm("Are you sure you want to delete this playlist container?")) return;
+
+            try {
+                const res = await fetch(`${BASE_URL}/api/v1/playlists/${playlistId}?user_id=${userId}`, {
+                    method: 'DELETE'
+                });
+
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.detail || "Deletion request failed");
+                }
+
+                showAlert("Playlist container deleted.", "success");
+                loadPlaylists();
+            } catch (error) {
+                console.error(error);
+                showAlert("Failed to delete playlist: " + error.message, "error");
+            }
+        }
+
+        // Escape HTML helper
+        function escapeHTML(str) {
+            if (!str) return '';
+            return str.replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+    </script>
+</body>
+
+</html>
