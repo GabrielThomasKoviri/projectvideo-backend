@@ -44,7 +44,7 @@ class OTTClient:
         description: str = "", 
         category: str = "", 
         tags: str = "", 
-        thumbnail_name: str = ""
+        thumbnail_names: List[str] = None
     ) -> Dict[str, Any]:
         """
         Register video metadata and obtain Bunny Storage/TUS upload credentials.
@@ -56,7 +56,7 @@ class OTTClient:
             "description": description,
             "category": category,
             "tags": tags,
-            "thumbnail_name": thumbnail_name
+            "thumbnail_names": thumbnail_names or []
         }
         res = requests.post(url, json=payload)
         return self._handle_response(res)
@@ -74,7 +74,9 @@ class OTTClient:
         title: Optional[str] = None, 
         description: Optional[str] = None, 
         category: Optional[str] = None, 
-        tags: Optional[List[str]] = None
+        tags: Optional[List[str]] = None,
+        thumbnail_url: Optional[str] = None,
+        alt_thumbnails: Optional[List[str]] = None
     ) -> Dict[str, Any]:
         """Update existing video metadata details."""
         url = f"{self.base_url}/api/v1/videos/{video_id}"
@@ -84,6 +86,8 @@ class OTTClient:
         if description is not None: payload["description"] = description
         if category is not None: payload["category"] = category
         if tags is not None: payload["tags"] = tags
+        if thumbnail_url is not None: payload["thumbnail_url"] = thumbnail_url
+        if alt_thumbnails is not None: payload["alt_thumbnails"] = alt_thumbnails
         
         res = requests.patch(url, params=params, json=payload)
         return self._handle_response(res)
