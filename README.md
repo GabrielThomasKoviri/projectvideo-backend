@@ -9,11 +9,16 @@ projectvideo-backend/
 │
 ├── app/                        # Main application package
 │   ├── static/                 # Static web assets served by FastAPI
-│   │   ├── api.py              # Duplicate copy of Python API client boilerplate
 │   │   └── index.html          # Interactive admin dashboard (with upload/play/edit options)
 │   │
-│   ├── main.py                 # FastAPI application startup, CORS setup, and API routes
-│   ├── models.py               # SQLAlchemy database models (Videos, Playlists)
+│   ├── routers/                # Modular API route packages
+│   │   ├── __init__.py         # Package initialization
+│   │   ├── playlists.py        # Playlist management endpoints
+│   │   └── videos.py           # Video upload and playback endpoints
+│   │
+│   ├── config.py               # Database and Bunny CDN configuration
+│   ├── main.py                 # FastAPI application startup and router registration
+│   ├── models.py               # SQLAlchemy database models & get_db dependency
 │   └── schemas.py              # Pydantic schemas for request validation & API responses
 │
 ├── .env                        # Local configuration and secret keys (Ignored by Git)
